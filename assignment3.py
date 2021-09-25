@@ -31,7 +31,7 @@ class Kinematics(object):
     Output
     :return: v: The resulting velocity vector for the system
     """
-    def forward(self,x,u):
+    def forward(self, x, u):
         raise NotImplementedError
 
     """
@@ -45,7 +45,7 @@ class Kinematics(object):
     :return: u: The necessary control inputs to achieve the desired velocity vector
 
     """
-    def inverse(self,x,v):
+    def inverse(self, x, v):
         raise NotImplementedError
 
 """
@@ -65,7 +65,7 @@ class Mecanum(Kinematics):
     :param roller_angle: The pitch angle of the rollers on each wheel
     :param roller_radius: The radius of the rollers on each wheel
     """
-    def __init__(self,length,width,wheel_radius,roller_angle,roller_radius):
+    def __init__(self, length, width, wheel_radius, roller_angle, roller_radius):
         self.L = length
         self.W = width
         self.R = wheel_radius
@@ -78,13 +78,22 @@ class Mecanum(Kinematics):
     Input
     :param x: The starting state (position) of the system. This is [x,y,theta].
     :param u: The control input to the system.
-            This is the wheel rates for each wheel [psi_1,psi_2,psi_3,psi_4]
+              This is the wheel rates for each wheel [psi_1,psi_2,psi_3,psi_4]
 
     Output
     :return: v: The resulting velocity vector for the system. This is [Vx,Vy,Vtheta]
     """
-    def forward(self,x,u):
-        raise NotImplementedError
+    def forward(self, x, u):
+        A = (1 / np.tan(self.alpha))
+        B = self.W + (self.L * A)
+
+        mat = [[1, 1, 1, 1], [(1 / A), -(1 / A), -(1 / A), (1 / A)], [-(1 / B), (1 / B), -(1 / B), (1 / B)]]
+        mat = np.reshape(mat, (3, 4))
+        mat = (self.R / 4) * mat
+
+        v = np.matmul(mat, u)
+
+        return v
 
     """
     Computes the inverse kinematics for the Mecanum system.
@@ -97,51 +106,64 @@ class Mecanum(Kinematics):
     :return: u: The necessary control inputs to achieve the desired velocity vector.
                 This is the wheel rates for each wheel [psi_1,psi_2,psi_3,psi_4]
     """
-    def inverse(self,x,v):
-        raise NotImplementedError
+    def inverse(self, x, v):
+        A = (1 / np.tan(self.alpha))
+        B = self.W + (self.L * A)
+
+        mat = [[1, A, -B], [1, -A, B], [1, -A, -B], [1, A, B]]
+        mat = np.reshape(mat, (4, 3))
+        mat = (1 / self.R) * mat;
+
+        u = np.matmul(mat, v)
+
+        return u
 
 def main():
 
-    x0 = np.array([0,0,0])
+    x0 = np.array([0, 0, 0])
 
     length = 0.3
-    width =  0.15
+    width = 0.15
     wheel_radius = 0.05
     roller_radius = 0.01
-    roller_angle = 45/360*np.pi
+    roller_angle = 45/360 * np.pi
 
-    mecanum = Mecanum(length,width,wheel_radius,roller_radius,roller_angle)
+    mecanum = Mecanum(length, width, wheel_radius, roller_radius, roller_angle)
 
-    u0 = np.array([2,2,2,2])
+    u0 = np.array([2, 2, 2, 2])
 
     print(f'Simulating wheel inputs of {u0} for 3 seconds')
     dt = 0.1
     t = 0
     x = x0
-    while t<3:
-        v = mecanum.forward(x,u0)
-        x += v * dt
-        t+=dt
+    while t < 3:
+        v = mecanum.forward(x, u0)
+        x = np.add(x, (v * dt))
+        #x += v * dt
+        t += dt
         print(f'{t}:{x}')
 
-    v_desired = np.array([0,0,45/360*np.pi])
+    v_desired = np.array([0, 0, 45 / 360 * np.pi])
     print(f'Rotating in place with {v_desired} for 1 seconds')
-    t=0
-    while t<1:
-        u = mecanum.inverse(x,v_desired)
-        v = mecanum.forward(x,u)
-        x += v * dt
-        t+=dt
+    t = 0
+    while t < 1:
+        u = mecanum.inverse(x, v_desired)
+        v = mecanum.forward(x, u)
+        x = np.add(x, (v * dt))
+        #x += v * dt
+        t += dt
         print(f'{t}:{x}')
 
-    v_desired = np.array([0.5,0.5,0])
+    v_desired = np.array([0.5, 0.5, 0])
     print(f'Translating with  {v_desired} for 2 seconds')
-    t=0
-    while t<2:
-        u = mecanum.inverse(x,v_desired)
-        v = mecanum.forward(x,u)
-        x += v * dt
-        t+=dt
+    t = 0
+
+    while t < 2:
+        u = mecanum.inverse(x, v_desired)
+        v = mecanum.forward(x, u)
+        x = np.add(x, (v * dt))
+        #x += v * dt
+        t += dt
         print(f'{t}:{x}')
 
 if __name__ == '__main__':

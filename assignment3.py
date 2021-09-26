@@ -112,7 +112,7 @@ class Mecanum(Kinematics):
 
         mat = [[1, A, -B], [1, -A, B], [1, -A, -B], [1, A, B]]
         mat = np.reshape(mat, (4, 3))
-        mat = (1 / self.R) * mat;
+        mat = (1 / self.R) * mat
 
         u = np.matmul(mat, v)
 
